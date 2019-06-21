@@ -39,7 +39,7 @@ About the regression procedure:
         minimize this prediction with the comp given by experiments.
     - we can optimize along any subgroup of parameters, by nulling 
         the gradients of those which we currently do not want to vary.
-    - note that softmax and softargmax are involved in the computations, leading to some small errors.
+    - note that a softargmax is involved in the computations, leading to some small errors.
     - the comparison of color sensations is done through the use of a "perceptual distance" which
         we assume here to be the L^infinity distance
     
@@ -74,7 +74,7 @@ import matplotlib.pyplot as plt
 
 from settings import date
 if date not in [2004,2008]:
-    raise ValueError('This script works only for the 2004 and 2008 settings.')
+    raise ValueError('This script works only for the 2004 and 2008 settings. Please change the date in settings.py accordingly.')
 
 from settings import R,LC,Nc,Nx,dx,dc,loc,dr,color_abs,space_abs
 from settings import white, test_configs, comp_configs
@@ -87,12 +87,15 @@ from pytorch_argmax import SoftArgmax, SoftMax
 #%%
 ''' IMPORTANT CONFIGURATIONS '''
 descend_gradient = 1 # choose False or True to launch gradient descent or not
+if descend_gradient :
+    print('You have chosen to make the regression of the model to the data. Otherwise, please change descend_gradient to 0.')
 
 show = False # False by default, do not show the intermediate activities
 
 # the parameters w.r.t. which we differentiate and allow gradient descent
 we_diff = 'fg' # 'fg' by default (good in practice), only differentiating on parameters of f and g
-print('We will differentiate on parameters of f and g only, but you can change this.')
+if descend_gradient :
+    print('We will differentiate on parameters of f and g only, but you can change this.')
 
 if we_diff == 'fg' : # tune in physical and color space
     do_we_grad = {'muf':True, 'nuf':True, 'alphaf':True, 'betaf':True,
@@ -342,7 +345,7 @@ class Net(torch.nn.Module):
 
         u = torch.abs(as_compared[None,:,:] - a_tests[:,None,:]) # shape (N = Nexp,Ncol,Ncol)
         u = self.Max(u) # shape (N = Nexp,Ncol), looking for L^infinity norm between (simulated) comps and tests sensations
-        u = 1/(u+1) # important to look for min instead of max
+        u = torch.exp(-u) # looking for min instead of max
         comp_preds = self.Argmax(u) # shape (Nexp,); looking for the comparison pattern MINIMIZING the L^infinity norm w.r.t. test sensation
         return comp_preds,a_tests,as_compared
 
@@ -376,6 +379,8 @@ def show_comp(q, save = False) :
         - comp_predicted + config1_comp (green)
     If q is a local min, the curves for comp and comp_pred must be as close as possible,
     and not too far from that of test.
+    
+    Use this if model() has not already been run through.
     '''
 
     model.from_numpy(q)
@@ -434,8 +439,8 @@ def Loss_and_grads(q) :
     loss += 100*criterion(comp_preds,Variable(torch.from_numpy(comps).type(dtype)))
     print('tnf = %.0f  current loss: ' %tnf, loss.item())
 
-    if tnf%4== 1 : # every four tnf iterations, illustrate the current parameter q 
-        print('test, comp and comp_pred are ',test_configs[exp0,0],comp_configs[exp0,0],comp_preds[exp0].item())
+    if tnf%3== 1 : # every 3 tnf iterations, illustrate the current parameter q 
+        print('test, comp and comp_pred are ',test_configs[exp0,0],np.round(comp_configs[exp0,0],3),comp_preds[exp0].item())
         if __name__ == '__main__' :
             config3[0] = comp_preds[exp0]
             compare(q,config1,config2,config3 = config3,show = False)
@@ -511,22 +516,24 @@ if __name__ == '__main__':
     # for the default values, Nx = 10, Nc = 20, do_we_grad = 'fg',
     # GD will typically take about 10 minutes so it is quite long: be patient!
     # also, the first iterations are often slower than the following ones
-    from initialization import q_Bob, q_nonlin
+    from initialization import q_Alice, q_nonlin
     if date == 2004 :
-        q = q_Bob
+        q = q_Alice # this value is in fact already close to optimal, you can change it
         print('initializing with q = {}'.format(np.round(q,2)))
     if date == 2008 :
-        q = q_nonlin
+        q = q_nonlin # this value is in fact already close to optimal, you can change it
         print('initializing with q_nonlin')
         pred_results = verify_nonlinear(q,model) # to test if this reproduces nonlinearity or not
 
 
-    if descend_gradient :
+    if descend_gradient : # you are likely to wait for 10 minutes, depending on your computer...
         show_maps(q)
         t = time.clock()
         
-        res = grad_desc(q,show = True)
+        res = grad_desc(q,show = True) # res.x will give the final regressed value of q
         print(time.clock() - t, "seconds to make GD")
     
-        if date == 2008: # you can also test on the final value of q optimized for date = 2004
+        if date == 2008:
+            # testing after regression if it can reproduce nonlinearity
+            # you can also test on the final value of q optimized for date = 2004
             pred_results = verify_nonlinear(res.x,model)

@@ -43,7 +43,7 @@ import matplotlib.pyplot as plt
 
 from settings import R,LC,Nc,Nx,dx,dc,loc, date
 if date != 2017 :
-    raise ValueError('This script works only for the HSL setting.')
+    raise ValueError('This script works only for the HSL setting. Please change variable date in settings.py to 2017.')
 from settings import HSL_test_configs, HSL_comp_configs
 from settings import gray, yellow, red, violet
 from settings import color_index, space_abs, color_abs
@@ -51,6 +51,7 @@ from settings import create_images
 
 from visualize import write, show_maps
 from pytorch_argmax import HSL_SoftArgmax_2D, SoftMax
+
 import time
 
 
@@ -77,7 +78,8 @@ show = False # by default, do not show the intermediate activities
 
 # the parameters w.r.t. which we differentiate and allow gradient descent
 we_diff = 'fg' # 'fg' by default (good in practice), only differentiating on parameters of f and g
-print('We will differentiate on parameters of f and g only, but you can change this.')
+if we_diff == 'fg': 
+    print('We will differentiate on parameters of f and g only, but you can change this.')
 
 if we_diff == 'fg' : # tune in physical and color space
     do_we_grad = {'muf':True, 'nuf':True, 'alphaf':True, 'betaf':True,
@@ -350,18 +352,16 @@ tnf = 0
 
 def Loss_and_grads(HSLmodel,q) :
     ''' Loss_and_grads(q) returns two values: the current loss, and the gradients
-    corresopnding to parameters wrt which we want to differentiate.
+    corresponding to parameters wrt which we want to differentiate.
     It relies on the model = Net() created using pytorch.
     This wraps the input used to feed scipy.optimize.minimize
     '''
-    global tnf
-    tnf += 1
-    """ q est un numpy arrif __name__ == "__main__":ay en float64 contenant les paramètres : ceux de f puis
-    g puis h puis F """
-    #print('f muf=%.2f,nuf=%.2f,alphaf=%.2f,betaf=%.2f g mug=%.2f,nug=%.2f,alphag=%.2f,betag=%.2f h muh=%.2f,sigmah=%.2f F gamma=%.2f' % tuple(q))
     
     print('\n')
     write(q)
+
+    global tnf
+    tnf += 1
     
     loss = 0
     
@@ -371,15 +371,26 @@ def Loss_and_grads(HSLmodel,q) :
     Cdiff1 = create_diffs(C1)
     C2 = create_images(all_configs[:,:,1])
     Cdiff2 = create_diffs(C2)
-    Ddiff = torch.cat((Cdiff1[None],Cdiff2[None]))
+    Ddiff = torch.cat((Cdiff1[None],Cdiff2[None])) # 2 stacks of color images for the 2D color space<
 
     comp_preds,a_tests,_ = HSLmodel(Ddiff,loc)
-    
     comps = HSL_comp_configs[:,0,:] # shape (Nexp,2)
 
     # what we want to optimize
-    loss += 100*criterion(comp_preds,Variable(torch.from_numpy(comps).type(dtype))) # 20 et barrière/100
-    print('tnf = %.0f  current loss: ' %tnf, loss.data[0])
+    loss += 100*criterion(comp_preds,Variable(torch.from_numpy(comps).type(dtype)))
+    print('tnf = %.0f  current loss: ' %tnf, loss.item())
+    
+    if tnf%3 == 1:
+        pred_results = comp_preds.data.numpy()
+        pred_X = pred_results[:,0]
+        pred_Y = pred_results[:,1]
+        X = HSL_test_configs[:,0,0] ; Y = HSL_test_configs[:,0,1]
+        U = pred_X - X ; V = pred_Y - Y
+        plt.figure()
+        plt.axis('equal')    
+        plt.quiver(X,Y,U,V,units = 'xy',scale = 1)
+        plt.show()
+    
 
     # now it's time to differentiate
     parameters = subset_parameters(HSLmodel)
@@ -445,11 +456,11 @@ def show_HSL_comp(q) :
     plt.title('predicted data with \n q = ' + 'f %.2f, %.2f, %.2f, %.2f, g %.2f, %.2f, %.2f, %.2f, h %.2f, %.2f, F %.2f' % tuple(q) )
     plt.show()
     
-#    a_test = a_tests[0].data.numpy()
-#    comp = comp_preds[0].data.numpy()
-#    i,j = int(color_index(comp[0])),int(color_index(comp[1]))
-#    k = np.where( (i == color_index(color_abs_prod[:,0])) *  (j == color_index(color_abs_prod[:,1])))
-#    a_comp = as_compared[k].data.numpy()[0]
+    a_test = a_tests[0].data.numpy()
+    comp = comp_preds[0].data.numpy()
+    i,j = int(color_index(comp[0])),int(color_index(comp[1]))
+    k = np.where( (i == color_index(color_abs_prod[:,0])) *  (j == color_index(color_abs_prod[:,1])))
+    a_comp = as_compared[k].data.numpy()[0]
 #        
 #    plt.figure()
 #    ima_test = plt.imshow(a_test,cmap = 'RdBu',vmin = 0,vmax = 1)
@@ -490,14 +501,15 @@ if __name__ == '__main__' :
     # and contains  elements! That is why increasing the sampling resolution
     # may lead to ever lasting computations.
 
-    from initialization import q_HSL as q
+    from initialization import q_HSL as q # this value already close to optimal, you can change it
     show_maps(q)
     show_HSL_exp()
+    print('lauching the regression')
     pred_results,U,V,a_test,a_comp = show_HSL_comp(q)
 
-    if descend_gradient :
+    if descend_gradient : # wait for ~10 mn (depending on your computer)
         t = time.clock()
         res = grad_desc(q,show = True)
         print(time.clock() - t, "seconds to make GD")
-        pred_results,U,V,a_test,a_comp = show_HSL_comp(res.x)
         show_HSL_exp()
+        pred_results,U,V,a_test,a_comp = show_HSL_comp(res.x)

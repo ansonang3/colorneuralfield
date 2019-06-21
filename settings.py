@@ -163,7 +163,7 @@ if date == 2004 :
                        [0.9, 0.98, 0.98],
                        [0.8, 0.98, 0.98],
                        [1.1, 0.98, 0.98],
-                       [1.4, 0.98, 0.98],
+                       [1.3, 0.98, 0.98],
                        [0.6, 0.98, 0.98]])
     
     everyone_test = np.concatenate((Alice_test,Bob_test))
@@ -177,6 +177,8 @@ if date == 2004 :
 #    test_configs = Bob_test- col_diff
 #    comp_configs = Bob_comp - col_diff
 #    print('SIMULATING Bob')
+    
+    print('this is an artificial dataset')
     
     C = create_images(test_configs[6])  # to check whether spatial resolution is good
     imC = plt.imshow(C,extent = [-1,1,-1,1], cmap='RdBu',vmin = -1, vmax = 1)
@@ -210,7 +212,7 @@ if date == 2008 :
     ''' The following are artificial data similar to that from [Monnier (2008)].
     To have the accurate and complete data, please ask the author directly. '''
     
-    Charlie_pl_shift = np.array([0.24,0.33,0.4,0.5,0.4,0.35,0.3])
+    Charlie_pl_shift = np.array([0.3,0.34,0.4,0.5,0.4,0.35,0.3])
     Charlie_lp_shift = - np.array([0.15,0.2,0.25,0.4,0.4,0.35,0.3])
     Charlie_comp = Charlie_test.copy()
     Charlie_comp[:7,0] += Charlie_pl_shift ; Charlie_comp[7:,0] += Charlie_lp_shift
@@ -224,6 +226,7 @@ if date == 2008 :
     comp_configs = Charlie_comp - col_diff
     verif_configs = verif - col_diff # fictive tests
     print('SIMULATING Charlie')
+    print('this is an artificial dataset')
     
 
 

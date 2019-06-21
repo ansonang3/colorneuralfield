@@ -39,7 +39,7 @@ class SoftArgmax(nn.Module):
         super(SoftArgmax,self).__init__()
     
     def forward(self,v):
-        for i in range(2) :
+        for i in range(2) : # 2
             # as many times as necessary to clearly separate too similar max peaks
             v = v/v.max()
             v = torch.exp(10*v)
@@ -70,9 +70,7 @@ class SoftMax(nn.Module):
             v = torch.exp(20*(v-2)) # to have negative numbers in the exp
             maxs = torch.log(torch.sum(v,2))/20 + 2
             return maxs # shape (Nexp,NN)
-        return maxs # shape (Nexp,NN)
  
-        
 class HSL_SoftArgmax_2D(nn.Module):
     ''' to compute a soft argmaximum in the HSL (chromatic 2D) color space
     defined by some argument here called abs_prod (or color_abs_prod)'''
